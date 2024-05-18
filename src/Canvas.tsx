@@ -20,8 +20,76 @@ function Canvas({ files }: CanvasProps) {
   const [dx, setDx] = React.useState(0);
   const [dy, setDy] = React.useState(0);
   const [zoom, setZoom] = React.useState(1.0);
+  const [ratio, setRatio] = React.useState(0.5);
+  // const [separators, setSeparators] = React.useState<number[]>([]);
   const [images, setImages] = React.useState<OffscreenCanvas[]>([]);
   const [mode, setMode] = React.useState<PresentationMode>(PresentationMode.bySide);
+
+  const render = () => {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext('2d');
+
+    if (!context || !canvas) return;
+
+    const { width, height } = canvas;
+
+    context.clearRect(0, 0, width, height);
+    context.imageSmoothingEnabled = false;
+
+    const imageWidth = width / images.length;
+    const imageHeight = height;
+
+    images.forEach((img, index) => {
+      if (mode === PresentationMode.bySide) {
+        context.drawImage(
+          img,
+          -dx / zoom,
+          -dy / zoom,
+          imageWidth / zoom,
+          imageHeight / zoom,
+          imageWidth * index,
+          0,
+          imageWidth,
+          imageHeight,
+        );
+
+        return;
+      }
+
+      if (images.length === 2) {
+        const offset = width * ratio * index;
+        const targetWidth = width * Math.abs(index - ratio);
+
+        context.drawImage(
+          img,
+          (-dx + offset) / zoom,
+          -dy / zoom,
+          targetWidth / zoom,
+          imageHeight / zoom,
+          offset,
+          0,
+          targetWidth,
+          imageHeight,
+        );
+
+        return;
+      }
+
+      const offset = imageWidth * index;
+
+      context.drawImage(
+        img,
+        (-dx + offset) / zoom,
+        -dy / zoom,
+        imageWidth / zoom,
+        imageHeight / zoom,
+        offset,
+        0,
+        imageWidth,
+        imageHeight,
+      );
+    });
+  };
 
   React.useEffect(() => {
     const canvas = canvasRef.current;
@@ -32,10 +100,28 @@ function Canvas({ files }: CanvasProps) {
 
     canvas.width = width;
     canvas.height = height;
+
+    const observer = new ResizeObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.target === canvas) {
+          canvas.width = entry.contentRect.width;
+          canvas.height = entry.contentRect.height;
+          render();
+        }
+      });
+    });
+
+    observer.observe(canvas);
+
+    return () => {
+      observer.unobserve(canvas);
+    };
   }, []);
 
   React.useEffect(() => {
     setImages([]);
+    setRatio(1 / files.length);
+    // setSeparators(files.slice(1).map((_, index) => parseFloat(((index + 1) / files.length).toFixed(2))));
 
     files.forEach((file, index) => {
       const img = new Image();
@@ -57,36 +143,8 @@ function Canvas({ files }: CanvasProps) {
   }, [files]);
 
   React.useEffect(() => {
-    const canvas = canvasRef.current;
-    const context = canvas?.getContext('2d');
-
-    if (!context || !canvas) return;
-
-    const { width, height } = canvas;
-
-    context.clearRect(0, 0, width, height);
-
-    const imageWidth = width / images.length;
-    const imageHeight = height;
-    const shouldOffsetImage = mode === PresentationMode.bySide;
-
-    images.forEach((img, index) => {
-      const offset = imageWidth * index;
-
-      context.imageSmoothingEnabled = false;
-      context.drawImage(
-        img,
-        -dx / zoom + (shouldOffsetImage ? 0 : offset / zoom),
-        -dy / zoom,
-        imageWidth / zoom,
-        imageHeight / zoom,
-        offset,
-        0,
-        imageWidth,
-        imageHeight,
-      );
-    });
-  }, [images, dx, dy, zoom, mode]);
+    render();
+  }, [images, dx, dy, zoom, mode, ratio]);
 
   const onPointerDown = (evt: React.PointerEvent<HTMLCanvasElement>) => {
     if (!files.length) return;
@@ -131,11 +189,28 @@ function Canvas({ files }: CanvasProps) {
   const changeMode = (evt: React.ChangeEvent<HTMLInputElement>) => {
     setMode(parseInt(evt.target.value) as PresentationMode);
   };
+  const changeRatio = (evt: React.ChangeEvent<HTMLInputElement>) => {
+    setRatio(parseFloat(evt.target.value));
+  };
+  const setFiftyFifty = () => {
+    setRatio(0.5);
+  };
+  const saveImage = () => {
+    const canvas = canvasRef.current;
+    const name = files.map((file) => file.name).join('+');
+
+    if (!canvas) return;
+
+    const link = document.createElement('a');
+    link.setAttribute('download', `${name}.png`);
+    link.setAttribute('href', canvas.toDataURL('image/png').replace('image/png', 'image/octet-stream'));
+    link.click();
+  };
 
   return (
-    <div className="contents">
-      <div className="flex gap-3">
-        <div className="flex-1 flex items-center gap-3 border border-gray-300 bg-slate-50 p-3 rounded-lg">
+    <>
+      <div className="flex gap-3 justify-center">
+        <div className="flex items-center gap-3 border border-gray-300 bg-slate-50 p-3 rounded-lg">
           <input type="range" value={zoom} min="0.1" max="3.0" step="0.1" onChange={handleChangeZoom} />
           <output>{Math.round(zoom * 100)}%</output>
           <button className="px-2 py-0.5 border border-gray-400 rounded" type="button" onClick={setNativeZoom}>
@@ -145,7 +220,7 @@ function Canvas({ files }: CanvasProps) {
             Fit
           </button>
         </div>
-        <div className="flex-1 flex items-center gap-3 border border-gray-300 bg-slate-50 p-3 rounded-lg">
+        <div className="flex items-center gap-3 border border-gray-300 bg-slate-50 p-3 rounded-lg">
           <label>
             By Side{' '}
             <input
@@ -167,10 +242,23 @@ function Canvas({ files }: CanvasProps) {
             />
           </label>
         </div>
+        <div className="flex items-center gap-3 border border-gray-300 bg-slate-50 p-3 rounded-lg">
+          <button className="px-2 py-0.5 border border-gray-400 rounded" type="button" onClick={saveImage}>
+            Save Image
+          </button>
+        </div>
       </div>
+      {mode === PresentationMode.split && images.length === 2 && (
+        <div className="flex justify-center gap-3 border border-gray-300 bg-slate-50 p-3 rounded-lg self-center">
+          <input type="range" min="0" max="1" step="0.01" value={ratio} onChange={changeRatio} />
+          <button className="px-2 py-0.5 border border-gray-400 rounded" type="button" onClick={setFiftyFifty}>
+            50/50
+          </button>
+        </div>
+      )}
       <div className="flex items-start justify-center flex-grow overflow-hidden [container-type:size]">
         <canvas
-          className="aspect-video w-full [@container(aspect-ratio_>_16/9)]:w-auto [@container(aspect-ratio_>_16/9)]:h-full border border-gray-300 rounded-lg bg-slate-50"
+          className="aspect-video overflow-auto w-full [@container(aspect-ratio_>_16/9)]:w-auto [@container(aspect-ratio_>_16/9)]:h-full border border-gray-300 rounded-lg bg-slate-50"
           ref={canvasRef}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -178,7 +266,7 @@ function Canvas({ files }: CanvasProps) {
           onPointerLeave={onPointerUp}
         />
       </div>
-    </div>
+    </>
   );
 }
 
