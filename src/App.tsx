@@ -2,21 +2,12 @@ import * as React from 'react';
 
 import Canvas from './Canvas.tsx';
 import FilePreview from './FilePreview.tsx';
+import AddFile from './AddFile.tsx';
 
 function App() {
   const [files, setFiles] = React.useState<File[]>([]);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
-  const addFile = () => {
-    fileInputRef.current?.click();
-  };
-  const importFile = React.useCallback((evt: React.ChangeEvent<HTMLInputElement>) => {
-    const files = evt.target.files;
-
-    if (files?.length) {
-      const file: File = files[0];
-
-      setFiles((prev) => [...prev, file]);
-    }
+  const onAddFile = React.useCallback((file: File) => {
+    setFiles((prev) => [...prev, file]);
   }, []);
   const onRemoveFile = React.useCallback((file: File) => {
     setFiles((prev) => {
@@ -34,15 +25,7 @@ function App() {
         {files.map((file, index) => (
           <FilePreview key={index} file={file} onRemove={onRemoveFile} />
         ))}
-        <div
-          className="border border-gray-400 rounded-lg w-36 aspect-video flex justify-center items-center cursor-pointer"
-          tabIndex={-1}
-          onClick={addFile}
-          role="button"
-        >
-          <span className="text-[48px] font-bold">+</span>
-        </div>
-        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={importFile} />
+        <AddFile onAddFile={onAddFile} />
       </div>
 
       <Canvas files={files} />
