@@ -1,5 +1,6 @@
 import * as React from 'react';
 
+import Button from './Button.tsx';
 import { createSeparators } from './utils.ts';
 import { Position, PresentationMode } from './models.ts';
 
@@ -22,6 +23,8 @@ function Controls({ canvasRef, images, mode, setMode, setPosition, setSeparators
     setZoom(1);
   };
   const setFitZoom = () => {
+    if (!images.length) return;
+
     const { width } = canvasRef.current as HTMLCanvasElement;
     const naturalWidth = images.map((image) => image.width).reduce((a, b) => (b > a ? b : a), -Infinity);
 
@@ -51,18 +54,15 @@ function Controls({ canvasRef, images, mode, setMode, setPosition, setSeparators
       <div className="flex items-center gap-3 border border-gray-300 bg-slate-50 p-3 rounded-lg">
         Zoom: <input type="range" value={zoom} min="0.1" max="3.0" step="0.1" onChange={handleChangeZoom} />
         <output>{Math.round(zoom * 100)}%</output>
-        <button className="px-2 py-0.5 border border-gray-400 rounded" type="button" onClick={setNativeZoom}>
+        <Button type="button" onClick={setNativeZoom}>
           100%
-        </button>
-        <button className="px-2 py-0.5 border border-gray-400 rounded" type="button" onClick={setFitZoom}>
+        </Button>
+        <Button type="button" onClick={setFitZoom}>
           Fit
-        </button>
+        </Button>
       </div>
       <div className="flex items-center gap-3 border border-gray-300 bg-slate-50 p-3 rounded-lg">
-        Slices:{' '}
-        <button className="px-2 py-0.5 border border-gray-400 rounded" onClick={resetSeparators}>
-          EQ
-        </button>
+        Split: <Button onClick={resetSeparators}>EQ</Button>
       </div>
       <div className="flex items-center gap-3 border border-gray-300 bg-slate-50 p-3 rounded-lg">
         Mode:{' '}
@@ -88,9 +88,9 @@ function Controls({ canvasRef, images, mode, setMode, setPosition, setSeparators
         </label>
       </div>
       <div className="flex items-center gap-3 border border-gray-300 bg-slate-50 p-3 rounded-lg">
-        <button className="px-2 py-0.5 border border-gray-400 rounded" type="button" onClick={saveImage}>
+        <Button type="button" onClick={saveImage}>
           Save Image
-        </button>
+        </Button>
       </div>
     </div>
   );

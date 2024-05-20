@@ -1,5 +1,8 @@
 import * as React from 'react';
 
+import Button from './Button.tsx';
+import { clx } from './utils.ts';
+
 interface AddFileProps {
   onAddFile: (file: File) => void;
 }
@@ -17,18 +20,19 @@ function AddFile({ onAddFile }: AddFileProps) {
       const file: File = files[0];
 
       onAddFile(file);
+      evt.target.files = new DataTransfer().files;
     }
   };
 
   const onDragOver = (evt: React.DragEvent<HTMLDivElement>) => {
     evt.preventDefault();
     evt.dataTransfer.dropEffect = evt.dataTransfer.items[0]?.type.startsWith('image/') ? 'copy' : 'none';
-    evt.currentTarget.classList.add('cursor-grab');
+    evt.currentTarget.classList.add('cursor-grab', 'bg-green-300');
   };
 
   const onDragLeave = (evt: React.DragEvent<HTMLDivElement>) => {
     evt.preventDefault();
-    evt.currentTarget.classList.remove('cursor-grab');
+    evt.currentTarget.classList.remove('cursor-grab', 'bg-green-300');
   };
 
   const onDrop = (evt: React.DragEvent<HTMLDivElement>) => {
@@ -40,21 +44,20 @@ function AddFile({ onAddFile }: AddFileProps) {
 
     input.files = evt.dataTransfer.files;
     input.dispatchEvent(new Event('change', { bubbles: true }));
+    input.files = new DataTransfer().files;
   };
 
   return (
     <>
-      <div
-        className="border border-gray-400 rounded-lg w-36 aspect-video flex justify-center items-center cursor-pointer"
-        role="button"
-        tabIndex={-1}
+      <Button
+        className={clx('w-36 aspect-video', 'flex justify-center items-center')}
         onClick={addFile}
         onDrop={onDrop}
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
       >
         <span className="text-[48px] font-bold">+</span>
-      </div>
+      </Button>
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={importFile} />
     </>
   );

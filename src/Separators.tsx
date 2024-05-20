@@ -8,6 +8,7 @@ interface SeparatorsProps {
 
 function Separators({ canvasRef, separators, setSeparators }: SeparatorsProps) {
   const pointerDownRef = React.useRef<number | null>(null);
+  const boundingRectRef = React.useRef<DOMRect | null>(null);
 
   const onChangeSeparator = (index: number, value: number) => {
     setSeparators((prev) => {
@@ -31,11 +32,11 @@ function Separators({ canvasRef, separators, setSeparators }: SeparatorsProps) {
   const onPointerMove = (evt: PointerEvent) => {
     const index = pointerDownRef.current;
     const canvas = canvasRef.current;
+    const boundingRect = boundingRectRef.current;
 
-    if (index == null || !canvas) return;
+    if (index == null || !canvas || !boundingRect) return;
 
-    // TODO cache bounding rect
-    const { left: referenceLeft, width: referenceWidth } = canvas.getBoundingClientRect();
+    const { left: referenceLeft, width: referenceWidth } = boundingRect;
     const separatorLeft = evt.clientX;
     const minDiff = 0.05; // 5% percent
     const min = (separators[index - 1] ?? 0) + minDiff;
@@ -50,6 +51,28 @@ function Separators({ canvasRef, separators, setSeparators }: SeparatorsProps) {
     document.removeEventListener('pointermove', onPointerMove);
     document.removeEventListener('pointerup', onPointerUp);
   };
+
+  React.useEffect(() => {
+    const canvas = canvasRef.current;
+
+    if (!canvas) return;
+
+    const observer = new ResizeObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.target === canvas) {
+          boundingRectRef.current = canvas.getBoundingClientRect();
+        }
+      });
+    });
+
+    boundingRectRef.current = canvas.getBoundingClientRect();
+    observer.observe(canvas);
+
+    return () => {
+      observer.unobserve(canvas);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canvasRef.current]);
 
   return separators.map((value, index) => (
     <svg
