@@ -2,8 +2,10 @@ import * as React from 'react';
 
 import Controls from './Controls.tsx';
 import Separators from './Separators.tsx';
-import { clx, createSeparators } from './utils.ts';
+import { calculateFit, createSeparators } from './utils/appUtils.ts';
 import { PresentationMode, Position } from './models.ts';
+import Point from './models/Point.ts';
+import { clx } from './utils/stringUtils.ts';
 
 interface CanvasProps {
   files: File[];
@@ -12,34 +14,35 @@ interface CanvasProps {
 function Canvas({ files }: CanvasProps) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const [pointerDown, setPointerDown] = React.useState<Position | null>(null);
-  const [position, setPosition] = React.useState<Position>({ x: 0, y: 0 });
+  const [position, setPosition] = React.useState<Position>(Point.of(0, 0));
   const [zoom, setZoom] = React.useState(1.0);
   const [separators, setSeparators] = React.useState<number[]>([]);
-  const [images, setImages] = React.useState<OffscreenCanvas[]>([]);
+  const [images, setImages] = React.useState<Array<OffscreenCanvas>>([]);
   const [mode, setMode] = React.useState<PresentationMode>(PresentationMode.split);
-  const filesCache = React.useMemo(() => new WeakMap(), []);
+  const filesCache = React.useMemo<WeakMap<File, OffscreenCanvas>>(() => new WeakMap(), []);
+  const boundingRectRef = React.useRef<DOMRect | null>(null);
 
-  // const setZoomRelative = React.useCallback(
-  //   (value: React.SetStateAction<number>) => {
-  //     const canvas = canvasRef.current;
-  //
-  //     if (typeof value !== 'number' || !canvas) {
-  //       setZoom(value);
-  //       return;
-  //     }
-  //
-  //     const { width, height } = canvas;
-  //     const center = [width / 2, height / 2];
-  //     const dc = [center[0] / zoom - center[0] / value, center[1] / zoom - center[1] / value];
-  //
-  //     setPosition({
-  //       x: (position.x / zoom) * value - dc[0] / zoom,
-  //       y: (position.y / zoom) * value - dc[1] / zoom,
-  //     });
-  //     setZoom(value);
-  //   },
-  //   [zoom, position],
-  // );
+  const setZoomRelative = React.useCallback(
+    (value: React.SetStateAction<number>) => {
+      const canvas = canvasRef.current;
+
+      if (typeof value !== 'number' || !canvas) {
+        setZoom(value);
+        return;
+      }
+
+      const { width, height } = canvas;
+      const center = Point.of(width, height).divide(2);
+      const pos = Point.from(position);
+      const imageCenter = center.divide(zoom).subtract(pos.divide(zoom));
+      const centerNext = imageCenter.add(pos.divide(value)).multiply(value);
+      const positionNext = pos.subtract(centerNext.subtract(center));
+
+      setPosition(positionNext);
+      setZoom(value);
+    },
+    [zoom, position, images],
+  );
 
   const render = () => {
     const canvas = canvasRef.current;
@@ -57,8 +60,6 @@ function Canvas({ files }: CanvasProps) {
     images.forEach((img, index) => {
       const imageWidth = width * (boundaries[index + 1] - boundaries[index]);
       const imageOffset = width * boundaries[index];
-
-      if (!img) return;
 
       context.drawImage(
         img,
@@ -89,12 +90,14 @@ function Canvas({ files }: CanvasProps) {
         if (entry.target === canvas) {
           canvas.width = entry.contentRect.width;
           canvas.height = entry.contentRect.height;
+          boundingRectRef.current = canvas.getBoundingClientRect();
           requestAnimationFrame(render);
         }
       });
     });
 
     observer.observe(canvas);
+    boundingRectRef.current = canvas.getBoundingClientRect();
 
     return () => {
       observer.unobserve(canvas);
@@ -103,11 +106,12 @@ function Canvas({ files }: CanvasProps) {
   }, []);
 
   React.useEffect(() => {
-    setImages(files.map((file) => (filesCache.has(file) ? filesCache.get(file) : undefined)));
-    setSeparators(createSeparators(files.length));
+    const imagesSparse: OffscreenCanvas[] = [];
 
     files.forEach((file, index) => {
-      if (filesCache.has(file)) return;
+      if (filesCache.has(file)) {
+        imagesSparse[index] = filesCache.get(file) as OffscreenCanvas;
+      }
 
       const img = new Image();
 
@@ -127,7 +131,17 @@ function Canvas({ files }: CanvasProps) {
       };
       img.src = URL.createObjectURL(file);
     });
+
+    setImages(imagesSparse);
+    setSeparators(createSeparators(files.length));
   }, [files]);
+
+  React.useEffect(() => {
+    if (!images.length) return;
+
+    setZoom(calculateFit(canvasRef.current, images));
+    setPosition({ x: 0, y: 0 });
+  }, [images]);
 
   React.useEffect(() => {
     const handle = requestAnimationFrame(render);
@@ -135,21 +149,21 @@ function Canvas({ files }: CanvasProps) {
     return () => {
       cancelAnimationFrame(handle);
     };
-  }, [images, position, zoom, mode, separators]);
+  }, [position, zoom, mode, separators]);
 
   const onPointerDown = (evt: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!images.length) return;
+    if (!images.length || !boundingRectRef.current) return;
 
     const { clientX, clientY } = evt;
-    const { left, top } = evt.currentTarget.getBoundingClientRect();
+    const { left, top } = boundingRectRef.current;
 
     setPointerDown({ x: clientX - left - position.x, y: clientY - top - position.y });
   };
   const onPointerMove = (evt: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!pointerDown) return;
+    if (!pointerDown || !boundingRectRef.current) return;
 
     const { clientX, clientY } = evt;
-    const { left, top } = evt.currentTarget.getBoundingClientRect();
+    const { left, top } = boundingRectRef.current;
 
     setPosition({
       x: clientX - left - pointerDown.x,
@@ -171,7 +185,7 @@ function Canvas({ files }: CanvasProps) {
         setMode={setMode}
         setPosition={setPosition}
         setSeparators={setSeparators}
-        setZoom={setZoom}
+        setZoom={setZoomRelative}
         zoom={zoom}
       />
       <div className="flex items-start justify-center flex-grow [container-type:size]">

@@ -1,7 +1,8 @@
 import * as React from 'react';
 
 import Button from './Button.tsx';
-import { clx } from './utils.ts';
+
+import { clx } from './utils/stringUtils.ts';
 
 interface AddFileProps {
   onAddFile: (file: File) => void;

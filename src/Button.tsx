@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { clx } from './utils.ts';
+import { clx } from './utils/stringUtils.ts';
 
 function Button(props: React.ButtonHTMLAttributes<Element> & React.PropsWithChildren) {
   const { className, ...rest } = props;

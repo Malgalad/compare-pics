@@ -1,7 +1,7 @@
 import * as React from 'react';
 
 import Button from './Button.tsx';
-import { createSeparators } from './utils.ts';
+import { calculateFit, createSeparators } from './utils/appUtils.ts';
 import { Position, PresentationMode } from './models.ts';
 
 interface ControlsProps {
@@ -25,10 +25,7 @@ function Controls({ canvasRef, images, mode, setMode, setPosition, setSeparators
   const setFitZoom = () => {
     if (!images.length) return;
 
-    const { width } = canvasRef.current as HTMLCanvasElement;
-    const naturalWidth = images.map((image) => image.width).reduce((a, b) => (b > a ? b : a), -Infinity);
-
-    setZoom(parseFloat((width / naturalWidth).toFixed(2)));
+    setZoom(calculateFit(canvasRef.current, images));
     setPosition({ x: 0, y: 0 });
   };
   const changeMode = (evt: React.ChangeEvent<HTMLInputElement>) => {
