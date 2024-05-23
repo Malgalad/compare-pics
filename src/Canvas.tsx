@@ -6,6 +6,7 @@ import { calculateFit, createSeparators } from './utils/appUtils.ts';
 import { PresentationMode, Position } from './models.ts';
 import Point from './models/Point.ts';
 import { clx } from './utils/stringUtils.ts';
+import { deg2rad } from './utils/numUtils.ts';
 
 interface CanvasProps {
   files: File[];
@@ -17,6 +18,7 @@ function Canvas({ files }: CanvasProps) {
   const [position, setPosition] = React.useState<Position>(Point.of(0, 0));
   const [zoom, setZoom] = React.useState(1.0);
   const [separators, setSeparators] = React.useState<number[]>([]);
+  const [rotation, setRotation] = React.useState<number>(0);
   const [images, setImages] = React.useState<Array<OffscreenCanvas>>([]);
   const [mode, setMode] = React.useState<PresentationMode>(PresentationMode.split);
   const filesCache = React.useMemo<WeakMap<File, OffscreenCanvas>>(() => new WeakMap(), []);
@@ -58,20 +60,38 @@ function Canvas({ files }: CanvasProps) {
     context.imageSmoothingEnabled = false;
 
     images.forEach((img, index) => {
-      const imageWidth = width * (boundaries[index + 1] - boundaries[index]);
-      const imageOffset = width * boundaries[index];
+      const start = boundaries[index];
+      const end = boundaries[index + 1];
+      const skew = Math.sin(deg2rad(rotation)) * height;
+      const abs = Math.abs(skew);
+      const imageWidth = width * (end - start);
+      const offset = width * start;
+      const isFirst = index === 0;
+      const isLast = index === images.length - 1;
+
+      context.save();
+
+      context.beginPath();
+      context.moveTo(isFirst ? 0 : offset + skew, 0);
+      context.lineTo(isLast ? width : offset + imageWidth + skew, 0);
+      context.lineTo(isLast ? width : offset + imageWidth - skew, height);
+      context.lineTo(isFirst ? 0 : offset - skew, height);
+      context.closePath();
+      context.clip();
 
       context.drawImage(
         img,
-        (-position.x + (isSyncMode ? 0 : imageOffset)) / zoom,
+        (-position.x - abs + (isSyncMode ? 0 : offset)) / zoom,
         -position.y / zoom,
-        imageWidth / zoom,
+        (width + abs * 2) / zoom,
         height / zoom,
-        imageOffset,
+        offset - abs,
         0,
-        imageWidth,
+        width + abs * 2,
         height,
       );
+
+      context.restore();
     });
   };
 
@@ -149,7 +169,7 @@ function Canvas({ files }: CanvasProps) {
     return () => {
       cancelAnimationFrame(handle);
     };
-  }, [position, zoom, mode, separators]);
+  }, [position, zoom, mode, separators, rotation]);
 
   const onPointerDown = (evt: React.PointerEvent<HTMLCanvasElement>) => {
     if (!images.length || !boundingRectRef.current) return;
@@ -182,8 +202,10 @@ function Canvas({ files }: CanvasProps) {
         canvasRef={canvasRef}
         images={images}
         mode={mode}
+        rotation={rotation}
         setMode={setMode}
         setPosition={setPosition}
+        setRotation={setRotation}
         setSeparators={setSeparators}
         setZoom={setZoomRelative}
         zoom={zoom}

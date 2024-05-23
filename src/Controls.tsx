@@ -8,16 +8,23 @@ interface ControlsProps {
   canvasRef: React.RefObject<HTMLCanvasElement>;
   images: OffscreenCanvas[];
   mode: PresentationMode;
+  rotation: number;
   setMode: React.Dispatch<React.SetStateAction<PresentationMode>>;
   setPosition: React.Dispatch<React.SetStateAction<Position>>;
+  setRotation: React.Dispatch<React.SetStateAction<number>>;
   setSeparators: React.Dispatch<React.SetStateAction<number[]>>;
   setZoom: React.Dispatch<React.SetStateAction<number>>;
   zoom: number;
 }
 
-function Controls({ canvasRef, images, mode, setMode, setPosition, setSeparators, setZoom, zoom }: ControlsProps) {
+function Controls(props: ControlsProps) {
+  const { canvasRef, images, mode, rotation, setMode, setPosition, setRotation, setSeparators, setZoom, zoom } = props;
+
   const handleChangeZoom = (evt: React.ChangeEvent<HTMLInputElement>) => {
     setZoom(parseFloat(evt.target.value));
+  };
+  const handleRotationChange = (evt: React.ChangeEvent<HTMLInputElement>) => {
+    setRotation(parseInt(evt.target.value));
   };
   const setNativeZoom = () => {
     setZoom(1);
@@ -33,6 +40,7 @@ function Controls({ canvasRef, images, mode, setMode, setPosition, setSeparators
   };
   const resetSeparators = () => {
     setSeparators(createSeparators(images.length));
+    setRotation(0);
   };
   const saveImage = () => {
     const canvas = canvasRef.current;
@@ -60,6 +68,7 @@ function Controls({ canvasRef, images, mode, setMode, setPosition, setSeparators
       </div>
       <div className="flex items-center gap-3 border border-gray-300 bg-slate-50 p-3 rounded-lg">
         Split: <Button onClick={resetSeparators}>EQ</Button>
+        <input type="range" value={rotation} min="-30" max="30" step="1" onChange={handleRotationChange} />
       </div>
       <div className="flex items-center gap-3 border border-gray-300 bg-slate-50 p-3 rounded-lg">
         Mode:{' '}
