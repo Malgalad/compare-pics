@@ -3,10 +3,10 @@ import * as React from 'react';
 import Controls from './Controls.tsx';
 import Separators from './Separators.tsx';
 import { calculateFit, createSeparators } from './utils/appUtils.ts';
-import { PresentationMode, Position } from './models.ts';
+import { Position, PresentationMode, StretchMode } from './models.ts';
 import Point from './models/Point.ts';
 import { clx } from './utils/stringUtils.ts';
-import { deg2rad } from './utils/numUtils.ts';
+import { deg2rad, findBigger, findLesser, toFixed } from './utils/numUtils.ts';
 
 interface CanvasProps {
   files: File[];
@@ -21,8 +21,19 @@ function Canvas({ files }: CanvasProps) {
   const [rotation, setRotation] = React.useState<number>(0);
   const [images, setImages] = React.useState<Array<OffscreenCanvas>>([]);
   const [mode, setMode] = React.useState<PresentationMode>(PresentationMode.split);
+  const [stretchMode, setStretchMode] = React.useState<StretchMode>(StretchMode.smallest);
   const filesCache = React.useMemo<WeakMap<File, OffscreenCanvas>>(() => new WeakMap(), []);
   const boundingRectRef = React.useRef<DOMRect | null>(null);
+  const boundaryImageSize = React.useMemo(
+    () =>
+      images
+        .map((img) => img.width)
+        .reduce(
+          stretchMode === StretchMode.smallest ? findLesser : findBigger,
+          stretchMode === StretchMode.smallest ? Infinity : -Infinity,
+        ),
+    [images, stretchMode],
+  );
 
   const setZoomRelative = React.useCallback(
     (value: React.SetStateAction<number>) => {
@@ -64,6 +75,7 @@ function Canvas({ files }: CanvasProps) {
       const end = boundaries[index + 1];
       const skew = Math.sin(deg2rad(rotation)) * height;
       const abs = Math.abs(skew);
+      const imageScale = img.width / boundaryImageSize;
       const imageWidth = width * (end - start);
       const offset = width * start;
       const isFirst = index === 0;
@@ -81,10 +93,10 @@ function Canvas({ files }: CanvasProps) {
 
       context.drawImage(
         img,
-        (-position.x - abs + (isSyncMode ? 0 : offset)) / zoom,
-        -position.y / zoom,
-        (width + abs * 2) / zoom,
-        height / zoom,
+        ((-position.x - abs + (isSyncMode ? 0 : offset)) / zoom) * imageScale,
+        (-position.y / zoom) * imageScale,
+        ((width + abs * 2) / zoom) * imageScale,
+        (height / zoom) * imageScale,
         offset - abs,
         0,
         width + abs * 2,
@@ -157,11 +169,18 @@ function Canvas({ files }: CanvasProps) {
   }, [files]);
 
   React.useEffect(() => {
-    if (!images.length) return;
+    if (images.length) {
+      setZoom(calculateFit(canvasRef.current, images, stretchMode));
+    } else {
+      setZoom(1.0);
+    }
 
-    setZoom(calculateFit(canvasRef.current, images));
     setPosition({ x: 0, y: 0 });
   }, [images]);
+
+  React.useEffect(() => {
+    setZoom(calculateFit(canvasRef.current, images, stretchMode));
+  }, [stretchMode]);
 
   React.useEffect(() => {
     const handle = requestAnimationFrame(render);
@@ -195,6 +214,13 @@ function Canvas({ files }: CanvasProps) {
 
     setPointerDown(null);
   };
+  const onWheel = (evt: React.WheelEvent<HTMLCanvasElement>) => {
+    evt.preventDefault();
+
+    const delta = toFixed((evt.deltaY || evt.deltaX) * -(0.005 / devicePixelRatio), 2);
+
+    setZoomRelative(Math.max(0.1, Math.min(3.0, zoom + delta)));
+  };
 
   return (
     <>
@@ -207,7 +233,9 @@ function Canvas({ files }: CanvasProps) {
         setPosition={setPosition}
         setRotation={setRotation}
         setSeparators={setSeparators}
+        setStretchMode={setStretchMode}
         setZoom={setZoomRelative}
+        stretchMode={stretchMode}
         zoom={zoom}
       />
       <div className="flex items-start justify-center flex-grow [container-type:size]">
@@ -224,6 +252,7 @@ function Canvas({ files }: CanvasProps) {
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             onPointerLeave={onPointerUp}
+            onWheel={onWheel}
           />
           <Separators canvasRef={canvasRef} setSeparators={setSeparators} separators={separators} />
         </div>

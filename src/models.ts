@@ -7,3 +7,8 @@ export enum PresentationMode {
   sync,
   split,
 }
+
+export enum StretchMode {
+  smallest,
+  largest,
+}
