@@ -71,7 +71,10 @@ function Controls(props: ControlsProps) {
     link.setAttribute('href', canvas.toDataURL('image/png').replace('image/png', 'image/octet-stream'));
     link.click();
   };
-  const hasVariableImages = images.slice(0, -1).some((img, i) => img.width !== images[i + 1].width);
+  const hasVariableImages = images
+    .filter(Boolean)
+    .slice(0, -1)
+    .some((img, i) => img.width !== images[i + 1]?.width);
 
   return (
     <div className="flex gap-3 justify-center flex-wrap">

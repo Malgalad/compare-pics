@@ -156,7 +156,7 @@ function Canvas({ files }: CanvasProps) {
         filesCache.set(file, canvas);
 
         setImages((prev) => {
-          const next = [...prev];
+          const next = ([] as OffscreenCanvas[]).concat(prev);
           next[index] = canvas;
           return next;
         });
