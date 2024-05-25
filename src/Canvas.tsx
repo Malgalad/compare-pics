@@ -217,7 +217,7 @@ function Canvas({ files }: CanvasProps) {
   const onWheel = (evt: React.WheelEvent<HTMLCanvasElement>) => {
     evt.preventDefault();
 
-    const delta = toFixed((evt.deltaY || evt.deltaX) * -(0.005 / devicePixelRatio), 2);
+    const delta = toFixed((evt.deltaY || evt.deltaX) * -(0.001 / devicePixelRatio), 2);
 
     setZoomRelative(Math.max(0.1, Math.min(3.0, zoom + delta)));
   };
