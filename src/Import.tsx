@@ -7,7 +7,7 @@ import { getQueryParam, getUrl, updateQueryParam } from './utils/urlUtils.ts';
 import { CLIENT_ID, ALBUM_ID_QUERY_PARAM } from './constants.ts';
 
 interface ImportProps {
-  onAddFile: (file: File) => void;
+  onAddFile: (file: File, updateURL: boolean) => void;
   onRemoveAll: () => void;
 }
 
@@ -49,7 +49,7 @@ function Import({ onAddFile, onRemoveAll }: ImportProps) {
         return [];
       })
       .then((files) => {
-        files.map(onAddFile);
+        files.map((file) => onAddFile(file, false));
       });
   };
 

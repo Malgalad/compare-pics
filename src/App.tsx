@@ -4,14 +4,14 @@ import Canvas from './Canvas.tsx';
 import FilePreview from './FilePreview.tsx';
 import AddFile from './AddFile.tsx';
 import Import from './Import.tsx';
-// import { getUrl, updateQueryParam } from './utils/urlUtils.ts';
-// import { ALBUM_ID_QUERY_PARAM } from './constants.ts';
+import { getUrl, updateQueryParam } from './utils/urlUtils.ts';
+import { ALBUM_ID_QUERY_PARAM } from './constants.ts';
 
 function App() {
   const [files, setFiles] = React.useState<File[]>([]);
   const [selected, setSelected] = React.useState<boolean[]>([]);
-  const onAddFile = React.useCallback((file: File) => {
-    // updateQueryParam(getUrl(), ALBUM_ID_QUERY_PARAM, undefined);
+  const onAddFile = React.useCallback((file: File, updateURL = true) => {
+    if (updateURL) updateQueryParam(getUrl(), ALBUM_ID_QUERY_PARAM, undefined);
     setFiles((prev) => [...prev, file]);
     setSelected((prev) => [...prev, true]);
   }, []);
@@ -19,7 +19,7 @@ function App() {
     (file: File) => {
       const index = files.indexOf(file);
 
-      // updateQueryParam(getUrl(), ALBUM_ID_QUERY_PARAM, undefined);
+      updateQueryParam(getUrl(), ALBUM_ID_QUERY_PARAM, undefined);
       setFiles((prev) => {
         const next = [...prev];
 
