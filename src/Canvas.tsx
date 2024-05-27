@@ -108,6 +108,20 @@ function Canvas({ files }: CanvasProps) {
   };
 
   React.useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === 'visible') {
+        requestAnimationFrame(render);
+      }
+    };
+
+    document.addEventListener('visibilitychange', refresh);
+
+    return () => {
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, []);
+
+  React.useEffect(() => {
     const canvas = canvasRef.current;
 
     if (!canvas) return;
